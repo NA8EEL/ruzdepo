@@ -1,0 +1,30 @@
+{
+  "name": "ruz-interiors",
+  "version": "1.0.0",
+  "description": "A website for RUZ Interiors, showcasing interior design transformations and client reviews.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "multer": "^1.4.2",
+    "sqlite3": "^5.0.2",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express-session": "^1.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7"
+  },
+  "keywords": [
+    "interior",
+    "design",
+    "website",
+    "ruz",
+    "interiors"
+  ],
+  "author": "Your Name",
+  "license": "ISC"
+}

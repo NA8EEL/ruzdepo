@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Define styles -->
+  <defs>
+    <style>
+      .logo-r { fill: #9E1B1D; }
+      .logo-text { font-family: 'Montserrat', Arial, sans-serif; font-weight: 700; fill: #9E1B1D; }
+      .logo-subtext { font-family: 'Poppins', Arial, sans-serif; font-weight: 400; fill: #D9C8B4; }
+    </style>
+  </defs>
+
+  <!-- Stylized R Logo -->
+  <g>
+    <!-- R Letter with modern design -->
+    <path class="logo-r" d="M 15 20 L 15 100 L 25 100 L 25 65 L 40 65 C 50 65 55 70 55 80 L 55 100 L 65 100 L 65 80 C 65 65 58 55 45 55 L 25 55 L 25 20 Z"/>
+
+    <!-- R Leg (diagonal) -->
+    <line x1="40" y1="65" x2="65" y2="100" stroke="#9E1B1D" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- RUZ Text -->
+  <text x="75" y="55" class="logo-text" font-size="42" letter-spacing="-1">RUZ</text>
+
+  <!-- Interiors subtext -->
+  <text x="75" y="80" class="logo-subtext" font-size="12" letter-spacing="2">interiors</text>
+</svg>

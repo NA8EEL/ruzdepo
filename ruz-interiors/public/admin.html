@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUZ Interiors - Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">RUZ Interiors</div>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="admin.html">Admin</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Admin Dashboard</h1>
+        
+        <section>
+            <h2>Upload Before & After Images</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="text" name="title" placeholder="Project Title" required>
+                <input type="file" name="beforeImage" accept="image/*" required>
+                <input type="file" name="afterImage" accept="image/*" required>
+                <button type="submit">Upload Images</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Manage Projects</h2>
+            <ul id="projectList"></ul>
+        </section>
+
+        <section>
+            <h2>Add Client Review</h2>
+            <form id="reviewForm">
+                <input type="text" name="clientName" placeholder="Client Name" required>
+                <select name="rating" required>
+                    <option value="">Rate the service</option>
+                    <option value="1">1 Star</option>
+                    <option value="2">2 Stars</option>
+                    <option value="3">3 Stars</option>
+                    <option value="4">4 Stars</option>
+                    <option value="5">5 Stars</option>
+                </select>
+                <textarea name="reviewText" placeholder="Your Review" required></textarea>
+                <button type="submit">Submit Review</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Manage Reviews</h2>
+            <ul id="reviewList"></ul>
+        </section>
+    </main>
+    <script src="admin.js"></script>
+</body>
+</html>

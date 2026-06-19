@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUZ Interiors - Premium Interior Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="animations.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <img src="logo.svg" alt="RUZ Interiors" class="logo-img">
+                <h1>RUZ</h1>
+            </div>
+            <nav class="nav">
+                <a href="#home" class="nav-link">Home</a>
+                <a href="#portfolio" class="nav-link">Portfolio</a>
+                <a href="#services" class="nav-link">Services</a>
+                <a href="#works" class="nav-link">Works</a>
+                <a href="#reviews" class="nav-link">Reviews</a>
+                <a href="#contact" class="nav-link">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <h2 class="hero-title">Transform Your Space</h2>
+            <p class="hero-subtitle">Discover the power of exceptional interior design. We create beautiful, functional spaces that reflect your style and enhance your lifestyle.</p>
+            <button class="cta-button">Explore Our Work</button>
+        </div>
+    </section>
+
+    <section id="portfolio" class="portfolio">
+        <div class="container">
+            <h2 class="section-title fade-in-on-scroll">Our Recent Projects</h2>
+            <p class="section-subtitle fade-in-on-scroll">Explore our before and after transformations</p>
+            <div id="sliders-container" class="sliders-grid">
+            </div>
+        </div>
+    </section>
+
+    <section id="works" class="completed-works-section">
+        <div class="container">
+            <h2 class="section-title fade-in-on-scroll">Completed Works Showcase</h2>
+            <p class="section-subtitle fade-in-on-scroll">A gallery of our finest interior design projects</p>
+
+            <div class="works-filters fade-in-on-scroll">
+                <button class="filter-btn active" data-filter="all">All Works</button>
+                <button class="filter-btn" data-filter="Residential">Residential</button>
+                <button class="filter-btn" data-filter="Commercial">Commercial</button>
+                <button class="filter-btn" data-filter="Hospitality">Hospitality</button>
+            </div>
+
+            <div id="completed-works-container" class="masonry-grid">
+            </div>
+        </div>
+    </section>
+
+    <section id="services" class="services-section">
+        <div class="container">
+            <h2 class="section-title fade-in-on-scroll">Services We Provide</h2>
+            <p class="section-subtitle fade-in-on-scroll">Comprehensive interior design solutions tailored to your needs</p>
+
+            <div class="services-tabs fade-in-on-scroll">
+                <button class="service-tab-btn active" data-tab="all">All Services</button>
+                <button class="service-tab-btn" data-tab="consulting">Consulting</button>
+                <button class="service-tab-btn" data-tab="design">Design & Planning</button>
+                <button class="service-tab-btn" data-tab="execution">Execution</button>
+            </div>
+
+            <div id="services-container" class="services-grid">
+            </div>
+        </div>
+    </section>
+
+    <section id="reviews" class="reviews">
+        <div class="container">
+            <h2 class="section-title fade-in-on-scroll">Client Testimonials</h2>
+            <p class="section-subtitle fade-in-on-scroll">What our happy clients say about us</p>
+            <div id="reviews-container" class="reviews-grid">
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact" class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>RUZ Interiors</h3>
+                    <p>Premium interior design services for modern living.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <p>Email: info@ruzinteriors.com</p>
+                    <p>Phone: (555) 123-4567</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#portfolio">Portfolio</a></li>
+                        <li><a href="#reviews">Reviews</a></li>
+                        <li><a href="/admin">Admin</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 RUZ Interiors. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating Social Icons -->
+    <div class="floating-icons">
+        <a href="https://www.instagram.com" target="_blank" class="float-icon instagram" title="Instagram">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/></svg>
+        </a>
+        <a href="https://www.facebook.com" target="_blank" class="float-icon facebook" title="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        </a>
+        <a href="https://wa.me/1234567890" target="_blank" class="float-icon whatsapp" title="WhatsApp">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a6.963 6.963 0 00-6.95 6.951c0 1.93.532 3.81 1.542 5.451L2.4 21.6l5.75-1.508c1.597.864 3.397 1.32 5.322 1.32 6.522 0 11.822-5.3 11.822-11.822 0-3.165-1.233-6.14-3.476-8.376-2.243-2.237-5.22-3.473-8.39-3.473m0-1.975c1.73 0 3.44.334 5.034.99 1.595.657 3.034 1.605 4.213 2.785 1.178 1.18 2.126 2.62 2.783 4.215.655 1.595.989 3.305.989 5.035 0 4.212-1.637 8.175-4.608 11.145-2.97 2.97-6.934 4.607-11.146 4.607-1.728 0-3.435-.334-5.027-.99L2.4 23.6l1.517-5.518C2.334 16.004 1 13.281 1 10.363 1 6.15 2.637 2.188 5.608-.784c2.97-2.972 6.934-4.608 11.146-4.608z"/></svg>
+        </a>
+        <a href="https://maps.google.com" target="_blank" class="float-icon location" title="Location">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11z"/></svg>
+        </a>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
