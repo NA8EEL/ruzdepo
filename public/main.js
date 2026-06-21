@@ -386,8 +386,32 @@ document.querySelector('.cta-button')?.addEventListener('click', () => {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadProjects();
-    loadCompletedWorks();
-    loadServices();
-    loadReviews();
+    console.log('Page loaded, starting data fetch...');
+    
+    Promise.allSettled([
+        (async () => { 
+            console.log('Loading projects...');
+            await loadProjects(); 
+            console.log('Projects loaded');
+        })(),
+        (async () => { 
+            console.log('Loading completed works...');
+            await loadCompletedWorks(); 
+            console.log('Completed works loaded');
+        })(),
+        (async () => { 
+            console.log('Loading services...');
+            await loadServices(); 
+            console.log('Services loaded');
+        })(),
+        (async () => { 
+            console.log('Loading reviews...');
+            await loadReviews(); 
+            console.log('Reviews loaded');
+        })()
+    ]).then(() => {
+        console.log('All data loaded successfully');
+    }).catch(err => {
+        console.error('Error loading data:', err);
+    });
 });
