@@ -61,8 +61,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+if (!process.env.SESSION_SECRET) {
+  console.warn('Warning: SESSION_SECRET is not set. Using a default insecure session secret for development. Set SESSION_SECRET in production.');
+}
+
+if (process.env.NODE_ENV !== 'production') {
+  if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+    console.warn('Warning: ADMIN_USERNAME and ADMIN_PASSWORD are not set. Using default development credentials.');
+    process.env.ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+    process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
+  }
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'dev_default_session_secret_change_me',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
@@ -100,7 +112,12 @@ app.post('/api/admin/login', (req, res) => {
     password === process.env.ADMIN_PASSWORD
   ) {
     req.session.isAdmin = true;
-    res.json({ success: true, message: 'Logged in successfully' });
+    req.session.save((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to save session' });
+      }
+      res.json({ success: true, message: 'Logged in successfully' });
+    });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
