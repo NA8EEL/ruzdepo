@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RUZ Interiors - Admin Panel</title>
+    <title>RUZ Interiors - Admin Panel testing</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -350,6 +350,31 @@
                         <button type="submit" class="submit-btn">Submit Review</button>
                     </form>
                 </div>
+
+                <!-- Add Completed Work -->
+                <div class="dashboard-section">
+                    <h2 class="section-title">Add Completed Work</h2>
+                    <div id="completed-work-message"></div>
+                    <form id="completed-work-form">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="completed-work-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="completed-work-description" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="completed-work-category" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Image</label>
+                            <input type="file" id="completed-work-image" accept="image/*" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Upload Completed Work</button>
+                    </form>
+                </div>
             </div>
 
             <!-- Projects List -->
@@ -362,6 +387,26 @@
             <div class="list-section">
                 <h2 class="section-title">Reviews</h2>
                 <div id="reviews-list"></div>
+            </div>
+
+            <!-- Completed Works List -->
+            <div class="list-section">
+                <h2 class="section-title">Completed Works</h2>
+                <div id="completed-works-list"></div>
+            </div>
+
+            <!-- Category Management -->
+            <div class="list-section">
+                <h2 class="section-title">Completed Work Categories</h2>
+                <div id="category-message"></div>
+                <form id="category-form">
+                    <div class="form-group">
+                        <label>New Category</label>
+                        <input type="text" id="new-category-name" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Add Category</button>
+                </form>
+                <div id="category-list"></div>
             </div>
         </div>
     </div>

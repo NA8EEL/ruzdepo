@@ -9,6 +9,8 @@ function checkAuthStatus() {
                 showDashboard();
                 loadProjects();
                 loadReviews();
+                loadCompletedWorks();
+                loadCompletedWorkCategories();
             } else {
                 showLogin();
             }
@@ -50,6 +52,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         showDashboard();
         loadProjects();
         loadReviews();
+        loadCompletedWorks();
+        loadCompletedWorkCategories();
     } catch (err) {
         document.getElementById('login-message').innerHTML = `<div class="message error">${err.message}</div>`;
     }
@@ -145,6 +149,144 @@ document.getElementById('review-form').addEventListener('submit', async (e) => {
     }
 });
 
+// Add Completed Work
+const completedWorkForm = document.getElementById('completed-work-form');
+if (completedWorkForm) {
+    completedWorkForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const title = document.getElementById('completed-work-title').value;
+        const description = document.getElementById('completed-work-description').value;
+        const category = document.getElementById('completed-work-category').value;
+        const imageFile = document.getElementById('completed-work-image').files[0];
+        const msgDiv = document.getElementById('completed-work-message');
+
+        if (!title || !description || !category || !imageFile) {
+            msgDiv.innerHTML = '<div class="message error">Please fill all fields</div>';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('category', category);
+        formData.append('image', imageFile);
+
+        try {
+            const res = await fetch('/api/admin/completed-works', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Upload failed');
+            }
+
+            msgDiv.innerHTML = '<div class="message success">Completed work uploaded!</div>';
+            document.getElementById('completed-work-form').reset();
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+                loadCompletedWorks();
+            }, 2000);
+        } catch (err) {
+            msgDiv.innerHTML = `<div class="message error">Error: ${err.message}</div>`;
+        }
+    });
+}
+
+async function loadCompletedWorkCategories() {
+    try {
+        const res = await fetch('/api/completed-work-categories');
+        if (!res.ok) throw new Error('Failed to load categories');
+
+        const categories = await res.json();
+        renderCompletedWorkCategoryOptions(categories);
+        renderCategoryManagementList(categories);
+    } catch (err) {
+        console.error('Error loading completed work categories:', err);
+        document.getElementById('category-list').innerHTML = '<div class="empty-state">Unable to load categories</div>';
+    }
+}
+
+function renderCompletedWorkCategoryOptions(categories) {
+    const select = document.getElementById('completed-work-category');
+    if (!select) return;
+
+    select.innerHTML = categories.map(category =>
+        `<option value="${category.name}">${category.name}</option>`
+    ).join('');
+}
+
+function renderCategoryManagementList(categories) {
+    const container = document.getElementById('category-list');
+    if (!container) return;
+
+    if (categories.length === 0) {
+        container.innerHTML = '<div class="empty-state">No categories yet</div>';
+        return;
+    }
+
+    const rows = categories.map(category => `
+        <tr>
+            <td>${category.name}</td>
+            <td><button class="delete-btn" onclick="deleteCompletedWorkCategory(${category.id})">Delete</button></td>
+        </tr>
+    `).join('');
+
+    container.innerHTML = `<table><thead><tr><th>Name</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+window.deleteCompletedWorkCategory = async function(id) {
+    if (!confirm('Delete this category? All works in this category will become Uncategorized.')) return;
+    try {
+        const res = await fetch(`/api/admin/completed-work-categories/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Delete failed');
+        }
+        await loadCompletedWorkCategories();
+        loadCompletedWorks();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+};
+
+const categoryForm = document.getElementById('category-form');
+if (categoryForm) {
+    categoryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('new-category-name').value.trim();
+        const msgDiv = document.getElementById('category-message');
+
+        if (!name) {
+            msgDiv.innerHTML = '<div class="message error">Please enter a category name</div>';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/completed-work-categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Add category failed');
+            }
+
+            msgDiv.innerHTML = '<div class="message success">Category added!</div>';
+            document.getElementById('new-category-name').value = '';
+            await loadCompletedWorkCategories();
+            loadCompletedWorks();
+            setTimeout(() => { msgDiv.innerHTML = ''; }, 2000);
+        } catch (err) {
+            msgDiv.innerHTML = `<div class="message error">Error: ${err.message}</div>`;
+        }
+    });
+}
+
 // Load Projects
 async function loadProjects() {
     try {
@@ -171,6 +313,46 @@ async function loadProjects() {
     } catch (err) {
         console.error('Error loading projects:', err);
         document.getElementById('projects-list').innerHTML = '<div class="empty-state">Error loading projects</div>';
+    }
+}
+
+// Load Completed Works
+async function loadCompletedWorks() {
+    try {
+        const res = await fetch('/api/completed-works');
+        const works = await res.json();
+        const container = document.getElementById('completed-works-list');
+
+        if (works.length === 0) {
+            container.innerHTML = '<div class="empty-state">No completed works yet</div>';
+            return;
+        }
+
+        let html = '<table><thead><tr><th>Title</th><th>Image</th><th>Category</th><th>Action</th></tr></thead><tbody>';
+        works.forEach(w => {
+            html += `<tr>
+                <td>${w.title}</td>
+                <td><img src="${w.imagePath}" alt="${w.title}" class="project-img"></td>
+                <td>${w.category}</td>
+                <td><button class="delete-btn" onclick="deleteCompletedWork(${w.id})">Delete</button></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        console.error('Error loading completed works:', err);
+        document.getElementById('completed-works-list').innerHTML = '<div class="empty-state">Error loading completed works</div>';
+    }
+}
+
+// Delete Completed Work
+async function deleteCompletedWork(id) {
+    if (!confirm('Delete this completed work?')) return;
+    try {
+        const res = await fetch(`/api/admin/completed-works/${id}`, { method: 'DELETE' });
+        if (res.ok) loadCompletedWorks();
+    } catch (err) {
+        alert('Error: ' + err.message);
     }
 }
 
