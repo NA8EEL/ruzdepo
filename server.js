@@ -119,7 +119,12 @@ app.post('/api/admin/login', (req, res) => {
     password === process.env.ADMIN_PASSWORD
   ) {
     req.session.isAdmin = true;
-    res.json({ success: true, message: 'Logged in successfully' });
+    req.session.save((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to save session' });
+      }
+      res.json({ success: true, message: 'Logged in successfully' });
+    });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
