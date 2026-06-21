@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const multer = require('multer');
 const fs = require('fs');
 
@@ -17,6 +18,9 @@ const {
   addCompletedWork,
   deleteCompletedWork,
   updateCompletedWork,
+  getAllCompletedWorkCategories,
+  addCompletedWorkCategory,
+  deleteCompletedWorkCategory,
   getAllServices,
   addService,
   deleteService,
@@ -26,6 +30,35 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Serve public files
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session configuration with SQLite store for Vercel persistence
+const sessionsDir = path.join(__dirname, 'db');
+if (!fs.existsSync(sessionsDir)) {
+  fs.mkdirSync(sessionsDir, { recursive: true });
+}
+
+app.use(session({
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: sessionsDir,
+    expire: 24 * 60 * 60 * 1000 // 24 hours
+  }),
+  secret: process.env.SESSION_SECRET || 'default-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', 
+    httpOnly: true, 
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'strict'
+  }
+}));
+
+// Configure multer for file uploads
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -53,17 +86,6 @@ const upload = multer({
   },
   limits: { fileSize: 10 * 1024 * 1024 }
 });
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
-}));
 
 const isAdmin = (req, res, next) => {
   if (req.session && req.session.isAdmin) {
@@ -267,6 +289,44 @@ app.delete('/api/admin/completed-works/:id', isAdmin, (req, res) => {
   });
 });
 
+app.get('/api/completed-work-categories', (req, res) => {
+  getAllCompletedWorkCategories((err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    } else {
+      res.json(rows || []);
+    }
+  });
+});
+
+app.post('/api/admin/completed-work-categories', isAdmin, (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+
+  addCompletedWorkCategory(name.trim(), (err, result) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to add category' });
+    } else {
+      res.json({ success: true, categoryId: result.id });
+    }
+  });
+});
+
+app.delete('/api/admin/completed-work-categories/:id', isAdmin, (req, res) => {
+  const categoryId = req.params.id;
+
+  deleteCompletedWorkCategory(categoryId, (err) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to delete category' });
+    } else {
+      res.json({ success: true });
+    }
+  });
+});
+
 // SERVICES ENDPOINTS
 app.get('/api/services', (req, res) => {
   getAllServices((err, rows) => {
@@ -309,3 +369,6 @@ app.delete('/api/admin/services/:id', isAdmin, (req, res) => {
 app.listen(PORT, () => {
   console.log(`RUZ Interiors server is running on http://localhost:${PORT}`);
 });
+
+// Export for Vercel serverless functions
+module.exports = app;

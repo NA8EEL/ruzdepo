@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm install",
+  "devCommand": "node server.js",
+  "installCommand": "npm install",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "server.js": {
+      "runtime": "nodejs18.x",
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
+}

@@ -28,13 +28,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let allWorks = [];
 let currentFilter = 'all';
+let completedWorkCategories = [];
 
 async function loadCompletedWorks() {
     try {
-        const response = await fetch('/api/completed-works');
-        if (!response.ok) throw new Error('Failed to fetch works');
+        const [worksResponse, categoriesResponse] = await Promise.all([
+            fetch('/api/completed-works'),
+            fetch('/api/completed-work-categories')
+        ]);
 
-        allWorks = await response.json();
+        if (!worksResponse.ok) throw new Error('Failed to fetch works');
+        if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+
+        allWorks = await worksResponse.json();
+        completedWorkCategories = await categoriesResponse.json();
+        renderCompletedWorkFilters();
         renderCompletedWorks(allWorks);
         attachFilterListeners();
     } catch (error) {
@@ -42,6 +50,16 @@ async function loadCompletedWorks() {
         document.getElementById('completed-works-container').innerHTML =
             '<p class="empty-message">No completed works yet.</p>';
     }
+}
+
+function renderCompletedWorkFilters() {
+    const filterContainer = document.getElementById('completed-work-filters');
+    if (!filterContainer) return;
+
+    filterContainer.innerHTML = '<button class="filter-btn active" data-filter="all">All Works</button>' +
+        completedWorkCategories.map(category =>
+            `<button class="filter-btn" data-filter="${category.name}">${category.name}</button>`
+        ).join('');
 }
 
 function renderCompletedWorks(works) {
@@ -134,9 +152,7 @@ function renderServices(services) {
     container.innerHTML = services.map((service, index) => `
         <div class="service-card" style="animation-delay: ${index * 0.1}s">
             <div class="service-icon">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                    <use href="${serviceIcons[service.iconType] || serviceIcons.consultation}"></use>
-                </svg>
+                <img src="${serviceIcons[service.iconType] || serviceIcons.consultation}" alt="${service.name}">
             </div>
             <h3>${service.name}</h3>
             <p>${service.description}</p>
