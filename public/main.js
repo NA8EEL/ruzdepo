@@ -23,6 +23,27 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
+// FETCH HELPER WITH TIMEOUT
+// ============================================
+
+async function fetchWithTimeout(url, timeout = 5000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        if (error.name === 'AbortError') {
+            console.warn(`Request to ${url} timed out after ${timeout}ms`);
+        }
+        throw error;
+    }
+}
+
+// ============================================
 // COMPLETED WORKS
 // ============================================
 
@@ -33,8 +54,8 @@ let completedWorkCategories = [];
 async function loadCompletedWorks() {
     try {
         const [worksResponse, categoriesResponse] = await Promise.all([
-            fetch('/api/completed-works'),
-            fetch('/api/completed-work-categories')
+            fetchWithTimeout('/api/completed-works', 5000),
+            fetchWithTimeout('/api/completed-work-categories', 5000)
         ]);
 
         if (!worksResponse.ok) throw new Error('Failed to fetch works');
@@ -128,7 +149,7 @@ const serviceIcons = {
 
 async function loadServices() {
     try {
-        const response = await fetch('/api/services');
+        const response = await fetchWithTimeout('/api/services', 5000);
         if (!response.ok) throw new Error('Failed to fetch services');
 
         allServices = await response.json();
@@ -184,7 +205,7 @@ function attachServiceTabListeners() {
 
 async function loadReviews() {
     try {
-        const response = await fetch('/api/reviews');
+        const response = await fetchWithTimeout('/api/reviews', 5000);
         if (!response.ok) throw new Error('Failed to fetch reviews');
 
         const reviews = await response.json();
@@ -243,7 +264,7 @@ function createReviewCard(review) {
 
 async function loadProjects() {
     try {
-        const response = await fetch('/api/projects');
+        const response = await fetchWithTimeout('/api/projects', 5000);
         if (!response.ok) throw new Error('Failed to fetch projects');
 
         const projects = await response.json();
