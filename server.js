@@ -366,9 +366,12 @@ app.delete('/api/admin/services/:id', isAdmin, (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`RUZ Interiors server is running on http://localhost:${PORT}`);
-});
+// Only listen if not running on Vercel
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`RUZ Interiors server is running on http://localhost:${PORT}`);
+  });
+}
 
 // Export for Vercel serverless functions
 module.exports = app;
