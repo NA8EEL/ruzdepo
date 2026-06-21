@@ -17,6 +17,9 @@ const {
   addCompletedWork,
   deleteCompletedWork,
   updateCompletedWork,
+  getAllCompletedWorkCategories,
+  addCompletedWorkCategory,
+  deleteCompletedWorkCategory,
   getAllServices,
   addService,
   deleteService,
@@ -264,6 +267,44 @@ app.delete('/api/admin/completed-works/:id', isAdmin, (req, res) => {
         res.json({ success: true });
       }
     });
+  });
+});
+
+app.get('/api/completed-work-categories', (req, res) => {
+  getAllCompletedWorkCategories((err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    } else {
+      res.json(rows || []);
+    }
+  });
+});
+
+app.post('/api/admin/completed-work-categories', isAdmin, (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+
+  addCompletedWorkCategory(name.trim(), (err, result) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to add category' });
+    } else {
+      res.json({ success: true, categoryId: result.id });
+    }
+  });
+});
+
+app.delete('/api/admin/completed-work-categories/:id', isAdmin, (req, res) => {
+  const categoryId = req.params.id;
+
+  deleteCompletedWorkCategory(categoryId, (err) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to delete category' });
+    } else {
+      res.json({ success: true });
+    }
   });
 });
 

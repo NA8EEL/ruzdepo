@@ -39,6 +39,15 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS completed_work_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      orderIndex INTEGER DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS services (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -73,7 +82,29 @@ db.serialize(() => {
     });
   };
 
+  const checkCompletedWorkCategories = () => {
+    db.get('SELECT COUNT(*) as count FROM completed_work_categories', (err, row) => {
+      if (row && row.count === 0) {
+        const defaultCategories = [
+          ['Bedroom', 0],
+          ['Living Room', 1],
+          ['Kitchen', 2],
+          ['Bathroom', 3],
+          ['Dining Room', 4]
+        ];
+
+        defaultCategories.forEach(category => {
+          db.run(
+            'INSERT INTO completed_work_categories (name, orderIndex) VALUES (?, ?)',
+            category
+          );
+        });
+      }
+    });
+  };
+
   setTimeout(checkServices, 500);
+  setTimeout(checkCompletedWorkCategories, 500);
 });
 
 const getAllProjects = (callback) => {
@@ -150,6 +181,35 @@ const updateCompletedWork = (id, title, description, category, callback) => {
   );
 };
 
+const getAllCompletedWorkCategories = (callback) => {
+  db.all('SELECT * FROM completed_work_categories ORDER BY orderIndex ASC, createdAt DESC', [], callback);
+};
+
+const addCompletedWorkCategory = (name, callback) => {
+  const maxOrder = (err, row) => {
+    const nextOrder = row ? row.maxOrder + 1 : 0;
+    db.run(
+      'INSERT INTO completed_work_categories (name, orderIndex) VALUES (?, ?)',
+      [name, nextOrder],
+      function(err) {
+        callback(err, { id: this.lastID });
+      }
+    );
+  };
+  db.get('SELECT MAX(orderIndex) as maxOrder FROM completed_work_categories', [], maxOrder);
+};
+
+const deleteCompletedWorkCategory = (id, callback) => {
+  db.get('SELECT name FROM completed_work_categories WHERE id = ?', [id], (err, row) => {
+    if (err) return callback(err);
+    const categoryName = row ? row.name : null;
+    db.run('UPDATE completed_works SET category = ? WHERE category = ?', ['Uncategorized', categoryName], (updateErr) => {
+      if (updateErr) return callback(updateErr);
+      db.run('DELETE FROM completed_work_categories WHERE id = ?', [id], callback);
+    });
+  });
+};
+
 const getAllServices = (callback) => {
   db.all('SELECT * FROM services ORDER BY orderIndex ASC', [], callback);
 };
@@ -190,6 +250,9 @@ module.exports = {
   addCompletedWork,
   deleteCompletedWork,
   updateCompletedWork,
+  getAllCompletedWorkCategories,
+  addCompletedWorkCategory,
+  deleteCompletedWorkCategory,
   getAllServices,
   addService,
   deleteService,
