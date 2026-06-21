@@ -1,8 +1,23 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, '..', 'ruz_interiors.db');
-const db = new sqlite3.Database(dbPath);
+// Use /tmp on Vercel (ephemeral), or local db directory
+const dbDir = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
+const dbPath = path.join(dbDir, 'ruz_interiors.db');
+
+// Ensure directory exists
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error opening database:', err);
+  } else {
+    console.log('Database connected at:', dbPath);
+  }
+});
 
 db.serialize(() => {
   db.run(`

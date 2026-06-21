@@ -36,9 +36,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session configuration with SQLite store for Vercel persistence
-const sessionsDir = path.join(__dirname, 'db');
-if (!fs.existsSync(sessionsDir)) {
-  fs.mkdirSync(sessionsDir, { recursive: true });
+// Use /tmp on Vercel (ephemeral), or db directory locally
+const sessionsDir = process.env.VERCEL 
+  ? '/tmp/sessions' 
+  : path.join(__dirname, 'db');
+
+try {
+  if (!fs.existsSync(sessionsDir)) {
+    fs.mkdirSync(sessionsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn(`Warning: Could not create sessions directory at ${sessionsDir}:`, err.message);
 }
 
 app.use(session({
