@@ -44,7 +44,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             body: JSON.stringify({ username, password })
         });
 
-        if (!res.ok) throw new Error('Login failed');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
 
         document.getElementById('login-message').innerHTML = '';
         document.getElementById('login-form').reset();
