@@ -29,20 +29,26 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy — required for Render, Railway, and most cloud hosts
+// so Express respects X-Forwarded-Proto and X-Forwarded-For headers
+app.set('trust proxy', 1);
+
 // Serve public files
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration using cookie-session (stateless — works on Vercel)
+// Session configuration using cookie-session (stateless)
 // Session data is encrypted in the browser cookie, no server-side storage needed
+// On Render/Railway the external connection is HTTPS but internal is HTTP,
+// so trust proxy + !auto secure is needed
 app.use(cookieSession({
   name: 'ruz_session',
   secret: process.env.SESSION_SECRET || 'default-secret-key',
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
   httpOnly: true,
   sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production'
+  secure: false // Render proxy terminates HTTPS; let trust proxy handle it
 }));
 
 // Configure multer for file uploads
@@ -127,10 +133,17 @@ app.get('/api/projects', (req, res) => {
   });
 });
 
-app.post('/api/admin/projects', isAdmin, upload.fields([
-  { name: 'beforeImage', maxCount: 1 },
-  { name: 'afterImage', maxCount: 1 }
-]), (req, res) => {
+app.post('/api/admin/projects', isAdmin, (req, res, next) => {
+  upload.fields([
+    { name: 'beforeImage', maxCount: 1 },
+    { name: 'afterImage', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message });
+    }
   const { title } = req.body;
   const beforeFile = req.files?.beforeImage?.[0];
   const afterFile = req.files?.afterImage?.[0];
@@ -148,6 +161,7 @@ app.post('/api/admin/projects', isAdmin, upload.fields([
     } else {
       res.json({ success: true, projectId: result.id, beforePath, afterPath });
     }
+  });
   });
 });
 
@@ -228,7 +242,14 @@ app.get('/api/completed-works', (req, res) => {
   });
 });
 
-app.post('/api/admin/completed-works', isAdmin, upload.single('image'), (req, res) => {
+app.post('/api/admin/completed-works', isAdmin, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message });
+    }
   const { title, description, category } = req.body;
   const imageFile = req.file;
 
@@ -244,6 +265,7 @@ app.post('/api/admin/completed-works', isAdmin, upload.single('image'), (req, re
     } else {
       res.json({ success: true, workId: result.id });
     }
+  });
   });
 });
 
