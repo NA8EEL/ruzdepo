@@ -348,13 +348,7 @@ app.delete('/api/admin/services/:id', isAdmin, (req, res) => {
   });
 });
 
-// Start the server on Railway, Render, Fly.io, or local dev
-// On Vercel, the `module.exports = app` export handles it via serverless function
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`RUZ Interiors server is running on http://localhost:${PORT}`);
-  });
-}
-
-// Export for Vercel serverless functions
-module.exports = app;
+// Start the server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`RUZ Interiors server is running on http://0.0.0.0:${PORT}`);
+});
