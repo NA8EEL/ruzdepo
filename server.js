@@ -1,8 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
+const cookieSession = require('cookie-session');
 const multer = require('multer');
 const fs = require('fs');
 
@@ -35,35 +34,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration with SQLite store for Vercel persistence
-// Use /tmp on Vercel (ephemeral), or db directory locally
-const sessionsDir = process.env.VERCEL 
-  ? '/tmp/sessions' 
-  : path.join(__dirname, 'db');
-
-try {
-  if (!fs.existsSync(sessionsDir)) {
-    fs.mkdirSync(sessionsDir, { recursive: true });
-  }
-} catch (err) {
-  console.warn(`Warning: Could not create sessions directory at ${sessionsDir}:`, err.message);
-}
-
-app.use(session({
-  store: new SQLiteStore({
-    db: 'sessions.db',
-    dir: sessionsDir,
-    expire: 24 * 60 * 60 * 1000 // 24 hours
-  }),
+// Session configuration using cookie-session (stateless — works on Vercel)
+// Session data is encrypted in the browser cookie, no server-side storage needed
+app.use(cookieSession({
+  name: 'ruz_session',
   secret: process.env.SESSION_SECRET || 'default-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    httpOnly: true, 
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'strict'
-  }
+  maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production'
 }));
 
 // Configure multer for file uploads
@@ -127,25 +106,15 @@ app.post('/api/admin/login', (req, res) => {
     password === process.env.ADMIN_PASSWORD
   ) {
     req.session.isAdmin = true;
-    req.session.save((err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
       res.json({ success: true, message: 'Logged in successfully' });
-    });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
 });
 
 app.post('/api/admin/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ error: 'Logout failed' });
-    } else {
-      res.json({ success: true, message: 'Logged out successfully' });
-    }
-  });
+  req.session = null;
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 app.get('/api/projects', (req, res) => {
