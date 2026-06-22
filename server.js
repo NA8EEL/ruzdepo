@@ -29,34 +29,37 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy — required for Render, Railway, and most cloud hosts
-// so Express respects X-Forwarded-Proto and X-Forwarded-For headers
-app.set('trust proxy', 1);
+// Trust proxy — required for Render and other cloud hosts
+app.set('trust proxy', true);
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  console.error('Failed to create uploads directory:', e.message);
+}
 
 // Serve public files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Session configuration using cookie-session (stateless)
-// Session data is encrypted in the browser cookie, no server-side storage needed
-// On Render/Railway the external connection is HTTPS but internal is HTTP,
-// so trust proxy + !auto secure is needed
+// Parse JSON and urlencoded bodies
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Session — simple, always works with HTTPS
 app.use(cookieSession({
   name: 'ruz_session',
   secret: process.env.SESSION_SECRET || 'default-secret-key',
-  maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  maxAge: 24 * 60 * 60 * 1000,
   httpOnly: true,
   sameSite: 'lax',
-  secure: false // Render proxy terminates HTTPS; let trust proxy handle it
+  secure: false
 }));
 
-// Configure multer for file uploads
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
+// Configure multer for file uploads (uploadsDir already declared above)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -368,6 +371,27 @@ app.delete('/api/admin/services/:id', isAdmin, (req, res) => {
       res.json({ success: true });
     }
   });
+});
+
+// Simple endpoints to diagnose issues
+app.get('/api/debug', (req, res) => {
+  res.json({
+    session: req.session ? Object.keys(req.session) : null,
+    isAdmin: req.session?.isAdmin || false,
+    cookies: req.headers.cookie ? req.headers.cookie.substring(0, 100) : 'none',
+    env: {
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      ADMIN_USERNAME_SET: !!process.env.ADMIN_USERNAME,
+      ADMIN_PASSWORD_SET: !!process.env.ADMIN_PASSWORD,
+    }
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // Start the server
