@@ -1,8 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
+const cookieSession = require('cookie-session');
 const multer = require('multer');
 const fs = require('fs');
 
@@ -30,48 +29,37 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy — required for Render and other cloud hosts
+app.set('trust proxy', true);
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  console.error('Failed to create uploads directory:', e.message);
+}
+
 // Serve public files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Session configuration with SQLite store for Vercel persistence
-// Use /tmp on Vercel (ephemeral), or db directory locally
-const sessionsDir = process.env.VERCEL 
-  ? '/tmp/sessions' 
-  : path.join(__dirname, 'db');
+// Parse JSON and urlencoded bodies
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-try {
-  if (!fs.existsSync(sessionsDir)) {
-    fs.mkdirSync(sessionsDir, { recursive: true });
-  }
-} catch (err) {
-  console.warn(`Warning: Could not create sessions directory at ${sessionsDir}:`, err.message);
-}
-
-app.use(session({
-  store: new SQLiteStore({
-    db: 'sessions.db',
-    dir: sessionsDir,
-    expire: 24 * 60 * 60 * 1000 // 24 hours
-  }),
+// Session — simple, always works with HTTPS
+app.use(cookieSession({
+  name: 'ruz_session',
   secret: process.env.SESSION_SECRET || 'default-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    httpOnly: true, 
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'strict'
-  }
+  maxAge: 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: false
 }));
 
-// Configure multer for file uploads
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
+// Configure multer for file uploads (uploadsDir already declared above)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -127,25 +115,15 @@ app.post('/api/admin/login', (req, res) => {
     password === process.env.ADMIN_PASSWORD
   ) {
     req.session.isAdmin = true;
-    req.session.save((err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to save session' });
-      }
       res.json({ success: true, message: 'Logged in successfully' });
-    });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
 });
 
 app.post('/api/admin/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ error: 'Logout failed' });
-    } else {
-      res.json({ success: true, message: 'Logged out successfully' });
-    }
-  });
+  req.session = null;
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 app.get('/api/projects', (req, res) => {
@@ -158,10 +136,17 @@ app.get('/api/projects', (req, res) => {
   });
 });
 
-app.post('/api/admin/projects', isAdmin, upload.fields([
-  { name: 'beforeImage', maxCount: 1 },
-  { name: 'afterImage', maxCount: 1 }
-]), (req, res) => {
+app.post('/api/admin/projects', isAdmin, (req, res, next) => {
+  upload.fields([
+    { name: 'beforeImage', maxCount: 1 },
+    { name: 'afterImage', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message });
+    }
   const { title } = req.body;
   const beforeFile = req.files?.beforeImage?.[0];
   const afterFile = req.files?.afterImage?.[0];
@@ -179,6 +164,7 @@ app.post('/api/admin/projects', isAdmin, upload.fields([
     } else {
       res.json({ success: true, projectId: result.id, beforePath, afterPath });
     }
+  });
   });
 });
 
@@ -259,7 +245,14 @@ app.get('/api/completed-works', (req, res) => {
   });
 });
 
-app.post('/api/admin/completed-works', isAdmin, upload.single('image'), (req, res) => {
+app.post('/api/admin/completed-works', isAdmin, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message });
+    }
   const { title, description, category } = req.body;
   const imageFile = req.file;
 
@@ -275,6 +268,7 @@ app.post('/api/admin/completed-works', isAdmin, upload.single('image'), (req, re
     } else {
       res.json({ success: true, workId: result.id });
     }
+  });
   });
 });
 
@@ -379,12 +373,28 @@ app.delete('/api/admin/services/:id', isAdmin, (req, res) => {
   });
 });
 
-// Only listen if not running on Vercel
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`RUZ Interiors server is running on http://localhost:${PORT}`);
+// Simple endpoints to diagnose issues
+app.get('/api/debug', (req, res) => {
+  res.json({
+    session: req.session ? Object.keys(req.session) : null,
+    isAdmin: req.session?.isAdmin || false,
+    cookies: req.headers.cookie ? req.headers.cookie.substring(0, 100) : 'none',
+    env: {
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      ADMIN_USERNAME_SET: !!process.env.ADMIN_USERNAME,
+      ADMIN_PASSWORD_SET: !!process.env.ADMIN_PASSWORD,
+    }
   });
-}
+});
 
-// Export for Vercel serverless functions
-module.exports = app;
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
+// Start the server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`RUZ Interiors server is running on http://0.0.0.0:${PORT}`);
+});
