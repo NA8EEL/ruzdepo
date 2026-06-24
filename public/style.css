@@ -1074,12 +1074,15 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    font-weight: 700;
-    font-size: 20px;
-    color: var(--white);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     border: none;
+}
+
+.float-icon img {
+    width: 24px;
+    height: 24px;
+    display: block;
 }
 
 .float-icon.instagram {
