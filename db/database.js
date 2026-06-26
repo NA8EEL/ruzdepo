@@ -144,6 +144,14 @@ const deleteProject = (id, callback) => {
   db.run('DELETE FROM projects WHERE id = ?', [id], callback);
 };
 
+const updateProject = (id, title, beforePath, afterPath, callback) => {
+  db.run(
+    'UPDATE projects SET title = ?, beforeImagePath = ?, afterImagePath = ? WHERE id = ?',
+    [title, beforePath, afterPath, id],
+    callback
+  );
+};
+
 const getAllReviews = (callback) => {
   db.all('SELECT * FROM reviews WHERE visible = 1 ORDER BY createdAt DESC', [], callback);
 };
@@ -257,6 +265,7 @@ module.exports = {
   getProjectById,
   addProject,
   deleteProject,
+  updateProject,
   getAllReviews,
   addReview,
   deleteReview,

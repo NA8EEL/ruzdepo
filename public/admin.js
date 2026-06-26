@@ -113,6 +113,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
 });
 
 // Add Review
+/*
 document.getElementById('review-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -149,6 +150,7 @@ document.getElementById('review-form').addEventListener('submit', async (e) => {
         msgDiv.innerHTML = `<div class="message error">Error: ${err.message}</div>`;
     }
 });
+*/
 
 // Add Completed Work
 const completedWorkForm = document.getElementById('completed-work-form');
@@ -302,11 +304,16 @@ async function loadProjects() {
 
         let html = '<table><thead><tr><th>Title</th><th>Before</th><th>After</th><th>Action</th></tr></thead><tbody>';
         projects.forEach(p => {
+            // Escape single quotes in titles to prevent breaking the onclick handler
+            const safeTitle = p.title.replace(/'/g, "\\'");
             html += `<tr>
                 <td>${p.title}</td>
                 <td><img src="${p.beforeImagePath}" alt="before" class="project-img"></td>
                 <td><img src="${p.afterImagePath}" alt="after" class="project-img"></td>
-                <td><button class="delete-btn" onclick="deleteProject(${p.id})">Delete</button></td>
+                <td>
+                    <button class="delete-btn" onclick="openEditProject(${p.id}, '${safeTitle}')" style="margin-right: 5px;">Edit</button>
+                    <button class="delete-btn" onclick="deleteProject(${p.id})">Delete</button>
+                </td>
             </tr>`;
         });
         html += '</tbody></table>';
@@ -315,6 +322,69 @@ async function loadProjects() {
         console.error('Error loading projects:', err);
         document.getElementById('projects-list').innerHTML = '<div class="empty-state">Error loading projects</div>';
     }
+}
+
+// Open Edit Project Modal
+window.openEditProject = function(id, title) {
+    document.getElementById('edit-project-id').value = id;
+    document.getElementById('edit-project-title').value = title;
+    
+    // Use 'flex' instead of 'block' so the centering CSS works
+    document.getElementById('edit-project-modal').style.display = 'flex';
+};
+
+// Close Edit Project Modal
+window.closeEditProject = function() {
+    document.getElementById('edit-project-modal').style.display = 'none';
+    document.getElementById('edit-project-form').reset();
+    document.getElementById('edit-project-message').innerHTML = '';
+};
+
+// Optional: Close modal if user clicks outside of the modal content box
+document.getElementById('edit-project-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEditProject();
+    }
+});
+
+// Submit Edit Project Form
+const editProjectForm = document.getElementById('edit-project-form');
+if (editProjectForm) {
+    editProjectForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('edit-project-id').value;
+        const title = document.getElementById('edit-project-title').value;
+        const beforeFile = document.getElementById('edit-before-image').files[0];
+        const afterFile = document.getElementById('edit-after-image').files[0];
+        const msgDiv = document.getElementById('edit-project-message');
+
+        const formData = new FormData();
+        formData.append('title', title);
+        if (beforeFile) formData.append('beforeImage', beforeFile);
+        if (afterFile) formData.append('afterImage', afterFile);
+
+        try {
+            const res = await fetch(`/api/admin/projects/${id}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Update failed');
+            }
+
+            msgDiv.innerHTML = '<div class="message success">Project updated successfully!</div>';
+            
+            setTimeout(() => {
+                closeEditProject();
+                loadProjects(); // Refresh the table
+            }, 1500);
+        } catch (err) {
+            msgDiv.innerHTML = `<div class="message error">Error: ${err.message}</div>`;
+        }
+    });
 }
 
 // Load Completed Works
