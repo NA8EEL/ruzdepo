@@ -803,8 +803,6 @@ body {
 .slider-label {
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
     z-index: 10;
     padding: 10px;
     background: rgba(0, 0, 0, 0.5);
@@ -813,13 +811,16 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
+    white-space: nowrap;
 }
 
 .before-label {
+    left: 0;
     background: rgba(158, 27, 29, 0.7);
 }
 
 .after-label {
+    right: 0;
     background: rgba(217, 200, 180, 0.7);
     color: var(--dark-text);
 }
