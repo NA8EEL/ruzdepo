@@ -297,6 +297,10 @@ function createSlider(project) {
     beforeLabel.className = 'slider-label before-label';
     beforeLabel.textContent = 'BEFORE';
 
+    const afterLabel = document.createElement('div');
+    afterLabel.className = 'slider-label after-label';
+    afterLabel.textContent = 'AFTER';
+
     const afterImage = document.createElement('img');
     afterImage.src = project.afterImagePath;
     afterImage.alt = 'After - ' + project.title;
@@ -360,6 +364,7 @@ function createSlider(project) {
     wrapperDiv.appendChild(sliderHandle);
     wrapperDiv.appendChild(rangeInput);
     wrapperDiv.appendChild(beforeLabel);
+    wrapperDiv.appendChild(afterLabel);
 
     const titleDiv = document.createElement('div');
     titleDiv.className = 'slider-title';
