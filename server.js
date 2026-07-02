@@ -10,6 +10,7 @@ const {
   getProjectById,
   addProject,
   deleteProject,
+  updateProject,
   getAllReviews,
   addReview,
   deleteReview,
@@ -188,6 +189,56 @@ app.delete('/api/admin/projects/:id', isAdmin, (req, res) => {
       } else {
         res.json({ success: true });
       }
+    });
+  });
+});
+
+// UPDATE PROJECT ENDPOINT
+app.put('/api/admin/projects/:id', isAdmin, (req, res, next) => {
+  const projectId = req.params.id;
+
+  upload.fields([
+    { name: 'beforeImage', maxCount: 1 },
+    { name: 'afterImage', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    // Fetch existing project to keep old paths if new ones aren't provided
+    getProjectById(projectId, (fetchErr, project) => {
+      if (fetchErr || !project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const title = req.body.title || project.title;
+      const beforeFile = req.files?.beforeImage?.[0];
+      const afterFile = req.files?.afterImage?.[0];
+
+      let beforePath = project.beforeImagePath;
+      let afterPath = project.afterImagePath;
+
+      // If new before image uploaded, set new path and delete old file
+      if (beforeFile) {
+        beforePath = `/uploads/${beforeFile.filename}`;
+        const oldBeforePath = path.join(__dirname, 'public', project.beforeImagePath);
+        if (fs.existsSync(oldBeforePath)) fs.unlinkSync(oldBeforePath);
+      }
+
+      // If new after image uploaded, set new path and delete old file
+      if (afterFile) {
+        afterPath = `/uploads/${afterFile.filename}`;
+        const oldAfterPath = path.join(__dirname, 'public', project.afterImagePath);
+        if (fs.existsSync(oldAfterPath)) fs.unlinkSync(oldAfterPath);
+      }
+
+      updateProject(projectId, title, beforePath, afterPath, (updateErr) => {
+        if (updateErr) {
+          res.status(500).json({ error: 'Failed to update project' });
+        } else {
+          res.json({ success: true, beforePath, afterPath });
+        }
+      });
     });
   });
 });
