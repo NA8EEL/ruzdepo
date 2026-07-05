@@ -111,6 +111,9 @@ app.get('/api/admin/check', (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
 
+  process.env.ADMIN_USERNAME = "nihal"
+  process.env.ADMIN_PASSWORD = "nihal@ruz"
+
   if (
     username === process.env.ADMIN_USERNAME &&
     password === process.env.ADMIN_PASSWORD
