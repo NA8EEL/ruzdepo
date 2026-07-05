@@ -64,10 +64,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 document.getElementById('logout-btn').addEventListener('click', async () => {
     try {
         await fetch('/api/admin/logout', { method: 'POST' });
-        isLoggedIn = false;
-        showLogin();
     } catch (err) {
         console.error('Logout error:', err);
+    } finally {
+        isLoggedIn = false;
+        window.location.href = 'index.html';
     }
 });
 
