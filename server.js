@@ -474,8 +474,13 @@ app.use((err, req, res, next) => {
 });
 
 // ─────────────────────────────────────────────
-// Start the server
+// Start the server (local dev only)
+// On Vercel, the app is exported as a module — no listen() needed
 // ─────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`RUZ Interiors server is running on http://0.0.0.0:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`RUZ Interiors server is running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+module.exports = app;
