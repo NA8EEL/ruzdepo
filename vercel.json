@@ -3,28 +3,13 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+      "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/icons/(.*)",
-      "dest": "/public/icons/$1"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "/public/uploads/$1"
-    },
-    {
-      "src": "/(ruz_logo\\.jpg|logo\\.svg|style\\.css|animations\\.css|main\\.js|admin\\.css|admin\\.html|admin\\.js|index\\.html)",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
+      "source": "/(.*)",
+      "destination": "/server.js"
     }
   ]
 }
