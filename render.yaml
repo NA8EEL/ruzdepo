@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: ruz-interiors
+    env: node
+    region: singapore          # closest to India; change to oregon / frankfurt etc.
+    plan: free                 # upgrade to Starter for persistent disks
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: SESSION_SECRET
+        generateValue: true    # Render auto-generates a secure random value
+      - key: ADMIN_USERNAME
+        sync: false            # set manually in Render dashboard
+      - key: ADMIN_PASSWORD
+        sync: false            # set manually in Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ruz-interiors-db
+          property: connectionString
+      - key: CLOUDINARY_URL
+        sync: false            # paste your CLOUDINARY_URL from Cloudinary dashboard
+
+databases:
+  - name: ruz-interiors-db
+    databaseName: ruz_interiors
+    user: ruz_user
+    region: singapore
+    plan: free
