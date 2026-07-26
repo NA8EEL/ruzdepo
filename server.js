@@ -454,6 +454,28 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
+// Test Cloudinary connectivity (open endpoint — for debugging only)
+app.get('/api/test-cloudinary', async (req, res) => {
+  if (!USE_CLOUDINARY) {
+    return res.json({ ok: false, reason: 'Cloudinary not configured (CLOUDINARY_URL not set)' });
+  }
+  try {
+    // Upload a tiny 1x1 white pixel PNG as base64
+    const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==';
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        tinyPng,
+        { folder: 'ruz-interiors-test', resource_type: 'image', public_id: 'connection-test' },
+        (err, r) => { if (err) reject(err); else resolve(r); }
+      );
+    });
+    res.json({ ok: true, url: result.secure_url, cloud: result.asset_id });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
 // ─────────────────────────────────────────────
 // Global error handler
 // ─────────────────────────────────────────────

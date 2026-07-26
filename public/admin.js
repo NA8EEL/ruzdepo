@@ -98,8 +98,17 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
         });
 
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Upload failed');
+            let errMsg = `HTTP ${res.status}`;
+            try {
+                const ct = res.headers.get('content-type') || '';
+                if (ct.includes('application/json')) {
+                    const data = await res.json();
+                    errMsg = data.error || JSON.stringify(data);
+                } else {
+                    errMsg = (await res.text()).substring(0, 200);
+                }
+            } catch (_) {}
+            throw new Error(errMsg);
         }
 
         msgDiv.innerHTML = '<div class="message success">Project uploaded!</div>';
@@ -183,8 +192,17 @@ if (completedWorkForm) {
             });
 
             if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.error || 'Upload failed');
+                let errMsg = `HTTP ${res.status}`;
+                try {
+                    const ct = res.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        const data = await res.json();
+                        errMsg = data.error || JSON.stringify(data);
+                    } else {
+                        errMsg = (await res.text()).substring(0, 200);
+                    }
+                } catch (_) {}
+                throw new Error(errMsg);
             }
 
             msgDiv.innerHTML = '<div class="message success">Completed work uploaded!</div>';
