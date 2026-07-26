@@ -35,88 +35,71 @@ app.set('trust proxy', true);
 
 // ─────────────────────────────────────────────
 // Storage: Cloudinary (production) or Local Disk (dev)
+// Always use memoryStorage for multer — avoids Vercel serverless
+// streaming issues. Files are then pushed to Cloudinary or disk manually.
 // ─────────────────────────────────────────────
 const USE_CLOUDINARY = !!(
   process.env.CLOUDINARY_URL ||
   (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
 );
 
-let upload;
 let cloudinary;
 
 if (USE_CLOUDINARY) {
   cloudinary = require('cloudinary');
-
-  // configure() reads CLOUDINARY_URL automatically, or use explicit vars
   if (!process.env.CLOUDINARY_URL) {
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
+      api_key:    process.env.CLOUDINARY_API_KEY,
       api_secret: process.env.CLOUDINARY_API_SECRET
     });
   }
-
-  const { CloudinaryStorage } = require('multer-storage-cloudinary');
-
-  const cloudinaryStorage = new CloudinaryStorage({
-    cloudinary,
-    params: (req, file) => ({
-      folder: 'ruz-interiors',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-      transformation: [{ quality: 'auto', fetch_format: 'auto' }]
-    })
-  });
-
-  upload = multer({
-    storage: cloudinaryStorage,
-    fileFilter: (req, file, cb) => {
-      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (allowedMimes.includes(file.mimetype)) cb(null, true);
-      else cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
-    },
-    limits: { fileSize: 10 * 1024 * 1024 }
-  });
-
   console.log('Using Cloudinary storage for uploads');
 } else {
-  // Local disk storage
+  // Ensure local uploads dir exists
   const uploadsDir = path.join(__dirname, 'public', 'uploads');
   try {
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   } catch (e) {
     console.error('Failed to create uploads directory:', e.message);
   }
-
-  const diskStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadsDir),
-    filename: (req, file, cb) => {
-      const uniqueName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${file.originalname}`;
-      cb(null, uniqueName);
-    }
-  });
-
-  upload = multer({
-    storage: diskStorage,
-    fileFilter: (req, file, cb) => {
-      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (allowedMimes.includes(file.mimetype)) cb(null, true);
-      else cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
-    },
-    limits: { fileSize: 10 * 1024 * 1024 }
-  });
-
   console.log('Using local disk storage for uploads');
 }
 
+// Always buffer files in memory — works on both Vercel and local
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
+  },
+  limits: { fileSize: 4 * 1024 * 1024 } // 4MB — Vercel free tier limit
+});
+
 // ─────────────────────────────────────────────
-// Helper: resolve image path/URL for DB storage
+// Helper: save an uploaded file and return its URL/path
 // ─────────────────────────────────────────────
-function getFilePath(file) {
+async function saveFile(file) {
   if (USE_CLOUDINARY) {
-    // Cloudinary returns the public URL in file.path
-    return file.path;
+    // Upload buffer as base64 data URI — no streaming needed
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        dataUri,
+        { folder: 'ruz-interiors', resource_type: 'image' },
+        (err, res) => { if (err) reject(err); else resolve(res); }
+      );
+    });
+    return result.secure_url;
+  } else {
+    // Write buffer to local disk
+    const ext = path.extname(file.originalname) || '.jpg';
+    const filename = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`;
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    fs.writeFileSync(path.join(uploadsDir, filename), file.buffer);
+    return `/uploads/${filename}`;
   }
-  return `/uploads/${file.filename}`;
 }
 
 // ─────────────────────────────────────────────
@@ -124,16 +107,14 @@ function getFilePath(file) {
 // ─────────────────────────────────────────────
 async function deleteStoredFile(filePath) {
   if (!filePath) return;
-
   if (USE_CLOUDINARY && cloudinary) {
     try {
       // Extract public_id from Cloudinary URL
-      // URL format: https://res.cloudinary.com/<cloud>/image/upload/v<ver>/ruz-interiors/<public_id>.<ext>
       const match = filePath.match(/\/ruz-interiors\/([^.]+)/);
       if (match) {
         await new Promise((resolve, reject) => {
-          cloudinary.uploader.destroy(`ruz-interiors/${match[1]}`, (err, result) => {
-            if (err) reject(err); else resolve(result);
+          cloudinary.uploader.destroy(`ruz-interiors/${match[1]}`, (err, res) => {
+            if (err) reject(err); else resolve(res);
           });
         });
       }
@@ -141,7 +122,6 @@ async function deleteStoredFile(filePath) {
       console.error('Cloudinary delete error:', err.message);
     }
   } else {
-    // Local file deletion
     const fullPath = path.join(__dirname, 'public', filePath);
     try {
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
@@ -231,26 +211,28 @@ app.post('/api/admin/projects', isAdmin, (req, res) => {
   upload.fields([
     { name: 'beforeImage', maxCount: 1 },
     { name: 'afterImage', maxCount: 1 }
-  ])(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
+  ])(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
 
     const { title } = req.body;
     const beforeFile = req.files?.beforeImage?.[0];
-    const afterFile = req.files?.afterImage?.[0];
+    const afterFile  = req.files?.afterImage?.[0];
 
     if (!title || !beforeFile || !afterFile) {
       return res.status(400).json({ error: 'Title and both images are required' });
     }
 
-    const beforePath = getFilePath(beforeFile);
-    const afterPath = getFilePath(afterFile);
+    try {
+      const beforePath = await saveFile(beforeFile);
+      const afterPath  = await saveFile(afterFile);
 
-    addProject(title, beforePath, afterPath, (err, result) => {
-      if (err) res.status(500).json({ error: 'Failed to add project' });
-      else res.json({ success: true, projectId: result.lastID, beforePath, afterPath });
-    });
+      addProject(title, beforePath, afterPath, (err, result) => {
+        if (err) res.status(500).json({ error: 'Failed to add project' });
+        else res.json({ success: true, projectId: result.lastID, beforePath, afterPath });
+      });
+    } catch (uploadErr) {
+      res.status(500).json({ error: 'Image upload failed: ' + uploadErr.message });
+    }
   });
 });
 
@@ -286,20 +268,24 @@ app.put('/api/admin/projects/:id', isAdmin, (req, res) => {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const title = req.body.title || project.title;
+      const title      = req.body.title || project.title;
       const beforeFile = req.files?.beforeImage?.[0];
-      const afterFile = req.files?.afterImage?.[0];
+      const afterFile  = req.files?.afterImage?.[0];
 
       let beforePath = project.beforeImagePath;
-      let afterPath = project.afterImagePath;
+      let afterPath  = project.afterImagePath;
 
-      if (beforeFile) {
-        await deleteStoredFile(project.beforeImagePath);
-        beforePath = getFilePath(beforeFile);
-      }
-      if (afterFile) {
-        await deleteStoredFile(project.afterImagePath);
-        afterPath = getFilePath(afterFile);
+      try {
+        if (beforeFile) {
+          await deleteStoredFile(project.beforeImagePath);
+          beforePath = await saveFile(beforeFile);
+        }
+        if (afterFile) {
+          await deleteStoredFile(project.afterImagePath);
+          afterPath = await saveFile(afterFile);
+        }
+      } catch (uploadErr) {
+        return res.status(500).json({ error: 'Image upload failed: ' + uploadErr.message });
       }
 
       updateProject(projectId, title, beforePath, afterPath, (updateErr) => {
@@ -354,7 +340,7 @@ app.get('/api/completed-works', (req, res) => {
 });
 
 app.post('/api/admin/completed-works', isAdmin, (req, res) => {
-  upload.single('image')(req, res, (err) => {
+  upload.single('image')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
 
     const { title, description, category } = req.body;
@@ -364,12 +350,15 @@ app.post('/api/admin/completed-works', isAdmin, (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const imagePath = getFilePath(imageFile);
-
-    addCompletedWork(title, description, imagePath, category, (err, result) => {
-      if (err) res.status(500).json({ error: 'Failed to add completed work' });
-      else res.json({ success: true, workId: result.lastID });
-    });
+    try {
+      const imagePath = await saveFile(imageFile);
+      addCompletedWork(title, description, imagePath, category, (err, result) => {
+        if (err) res.status(500).json({ error: 'Failed to add completed work' });
+        else res.json({ success: true, workId: result.lastID });
+      });
+    } catch (uploadErr) {
+      res.status(500).json({ error: 'Image upload failed: ' + uploadErr.message });
+    }
   });
 });
 
