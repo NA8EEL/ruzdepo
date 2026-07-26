@@ -459,8 +459,12 @@ app.get('/api/test-cloudinary', async (req, res) => {
   if (!USE_CLOUDINARY) {
     return res.json({ ok: false, reason: 'Cloudinary not configured (CLOUDINARY_URL not set)' });
   }
+
+  // Show config (cloud name only — safe to expose)
+  const cfg = cloudinary.config();
+  const configInfo = { cloud_name: cfg.cloud_name, api_key_set: !!cfg.api_key, api_secret_set: !!cfg.api_secret };
+
   try {
-    // Upload a tiny 1x1 white pixel PNG as base64
     const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==';
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload(
@@ -469,11 +473,19 @@ app.get('/api/test-cloudinary', async (req, res) => {
         (err, r) => { if (err) reject(err); else resolve(r); }
       );
     });
-    res.json({ ok: true, url: result.secure_url, cloud: result.asset_id });
+    res.json({ ok: true, url: result.secure_url, config: configInfo });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    // err from Cloudinary v1 is a plain object, not an Error
+    res.status(500).json({
+      ok: false,
+      config: configInfo,
+      error: err.message || err.error?.message || String(err),
+      http_code: err.http_code,
+      full: JSON.parse(JSON.stringify(err))   // safely serialize any plain object
+    });
   }
 });
+
 
 
 // ─────────────────────────────────────────────
