@@ -64,18 +64,28 @@ function cloudinarySign(params, apiSecret) {
 }
 
 // Upload a file buffer to Cloudinary via REST API
+// Uses unsigned upload preset (no API key permission needed)
 async function cloudinaryUpload(buffer, mimetype) {
-  const { apiKey, apiSecret, cloudName } = getCloudinaryCreds();
-  const timestamp = Math.round(Date.now() / 1000).toString();
-  const folder    = 'ruz-interiors';
-  const signature = cloudinarySign({ folder, timestamp }, apiSecret);
+  const { cloudName } = getCloudinaryCreds();
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+  const folder       = 'ruz-interiors';
 
   const form = new FormData();
-  form.append('file',      `data:${mimetype};base64,${buffer.toString('base64')}`);
-  form.append('api_key',   apiKey);
-  form.append('timestamp', timestamp);
-  form.append('signature', signature);
-  form.append('folder',    folder);
+  form.append('file',   `data:${mimetype};base64,${buffer.toString('base64')}`);
+  form.append('folder', folder);
+
+  if (uploadPreset) {
+    // Unsigned upload — no signature needed, just the preset name
+    form.append('upload_preset', uploadPreset);
+  } else {
+    // Signed upload fallback — requires API key + secret
+    const { apiKey, apiSecret } = getCloudinaryCreds();
+    const timestamp = Math.round(Date.now() / 1000).toString();
+    const signature = cloudinarySign({ folder, timestamp }, apiSecret);
+    form.append('api_key',   apiKey);
+    form.append('timestamp', timestamp);
+    form.append('signature', signature);
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -89,6 +99,7 @@ async function cloudinaryUpload(buffer, mimetype) {
     clearTimeout(timer);
   }
 }
+
 
 // Delete an image from Cloudinary via REST API
 async function cloudinaryDelete(publicId) {
