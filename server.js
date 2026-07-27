@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
+const path    = require('path');
+const crypto  = require('crypto');
 const cookieSession = require('cookie-session');
-const multer = require('multer');
-const fs = require('fs');
+const multer  = require('multer');
+const fs      = require('fs');
 
 const {
   getAllProjects,
@@ -34,100 +35,127 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', true);
 
 // ─────────────────────────────────────────────
-// Storage: Cloudinary (production) or Local Disk (dev)
-// Always use memoryStorage for multer — avoids Vercel serverless
-// streaming issues. Files are then pushed to Cloudinary or disk manually.
+// Cloudinary via native fetch (no SDK — avoids Vercel Lambda timeouts)
 // ─────────────────────────────────────────────
 const USE_CLOUDINARY = !!(
   process.env.CLOUDINARY_URL ||
   (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
 );
 
-let cloudinary;
+// Parse credentials from CLOUDINARY_URL (cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
+function getCloudinaryCreds() {
+  if (process.env.CLOUDINARY_URL) {
+    const m = process.env.CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+    if (m) return { apiKey: m[1], apiSecret: m[2], cloudName: m[3] };
+  }
+  return {
+    apiKey:    process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME
+  };
+}
+
+// Generate Cloudinary request signature (SHA-1)
+function cloudinarySign(params, apiSecret) {
+  const str = Object.keys(params).sort()
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
+  return crypto.createHash('sha1').update(str + apiSecret).digest('hex');
+}
+
+// Upload a file buffer to Cloudinary via REST API
+async function cloudinaryUpload(buffer, mimetype) {
+  const { apiKey, apiSecret, cloudName } = getCloudinaryCreds();
+  const timestamp = Math.round(Date.now() / 1000).toString();
+  const folder    = 'ruz-interiors';
+  const signature = cloudinarySign({ folder, timestamp }, apiSecret);
+
+  const form = new FormData();
+  form.append('file',      `data:${mimetype};base64,${buffer.toString('base64')}`);
+  form.append('api_key',   apiKey);
+  form.append('timestamp', timestamp);
+  form.append('signature', signature);
+  form.append('folder',    folder);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res  = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: 'POST', body: form, signal: controller.signal });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return data.secure_url;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Delete an image from Cloudinary via REST API
+async function cloudinaryDelete(publicId) {
+  if (!publicId) return;
+  try {
+    const { apiKey, apiSecret, cloudName } = getCloudinaryCreds();
+    const timestamp = Math.round(Date.now() / 1000).toString();
+    const signature = cloudinarySign({ public_id: publicId, timestamp }, apiSecret);
+
+    const form = new FormData();
+    form.append('public_id', publicId);
+    form.append('api_key',   apiKey);
+    form.append('timestamp', timestamp);
+    form.append('signature', signature);
+
+    await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
+      { method: 'POST', body: form });
+  } catch (err) {
+    console.error('Cloudinary delete error:', err.message);
+  }
+}
 
 if (USE_CLOUDINARY) {
-  cloudinary = require('cloudinary');
-  if (!process.env.CLOUDINARY_URL) {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key:    process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET
-    });
-  }
-  console.log('Using Cloudinary storage for uploads');
+  console.log('Using Cloudinary storage (fetch-based) for uploads');
 } else {
-  // Ensure local uploads dir exists
   const uploadsDir = path.join(__dirname, 'public', 'uploads');
   try {
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  } catch (e) {
-    console.error('Failed to create uploads directory:', e.message);
-  }
+  } catch (e) { console.error('Failed to create uploads dir:', e.message); }
   console.log('Using local disk storage for uploads');
 }
 
-// Always buffer files in memory — works on both Vercel and local
+// multer: always buffer in memory
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (allowedMimes.includes(file.mimetype)) cb(null, true);
+    const ok = ['image/jpeg', 'image/png', 'image/webp'];
+    if (ok.includes(file.mimetype)) cb(null, true);
     else cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
   },
-  limits: { fileSize: 4 * 1024 * 1024 } // 4MB — Vercel free tier limit
+  limits: { fileSize: 4 * 1024 * 1024 }
 });
 
-// ─────────────────────────────────────────────
-// Helper: save an uploaded file and return its URL/path
-// ─────────────────────────────────────────────
+// Save file — Cloudinary (production) or local disk (dev)
 async function saveFile(file) {
   if (USE_CLOUDINARY) {
-    // Upload buffer as base64 data URI — no streaming needed
-    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload(
-        dataUri,
-        { folder: 'ruz-interiors', resource_type: 'image' },
-        (err, res) => { if (err) reject(err); else resolve(res); }
-      );
-    });
-    return result.secure_url;
-  } else {
-    // Write buffer to local disk
-    const ext = path.extname(file.originalname) || '.jpg';
-    const filename = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`;
-    const uploadsDir = path.join(__dirname, 'public', 'uploads');
-    fs.writeFileSync(path.join(uploadsDir, filename), file.buffer);
-    return `/uploads/${filename}`;
+    return cloudinaryUpload(file.buffer, file.mimetype);
   }
+  const ext      = path.extname(file.originalname) || '.jpg';
+  const filename = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`;
+  const dir      = path.join(__dirname, 'public', 'uploads');
+  fs.writeFileSync(path.join(dir, filename), file.buffer);
+  return `/uploads/${filename}`;
 }
 
-// ─────────────────────────────────────────────
-// Helper: delete a stored image
-// ─────────────────────────────────────────────
+// Delete stored image
 async function deleteStoredFile(filePath) {
   if (!filePath) return;
-  if (USE_CLOUDINARY && cloudinary) {
-    try {
-      // Extract public_id from Cloudinary URL
-      const match = filePath.match(/\/ruz-interiors\/([^.]+)/);
-      if (match) {
-        await new Promise((resolve, reject) => {
-          cloudinary.uploader.destroy(`ruz-interiors/${match[1]}`, (err, res) => {
-            if (err) reject(err); else resolve(res);
-          });
-        });
-      }
-    } catch (err) {
-      console.error('Cloudinary delete error:', err.message);
-    }
+  if (USE_CLOUDINARY) {
+    // Extract public_id: .../ruz-interiors/<id>
+    const m = filePath.match(/\/ruz-interiors\/([^.?]+)/);
+    if (m) await cloudinaryDelete(`ruz-interiors/${m[1]}`);
   } else {
-    const fullPath = path.join(__dirname, 'public', filePath);
     try {
-      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-    } catch (err) {
-      console.error('Local file delete error:', err.message);
-    }
+      const full = path.join(__dirname, 'public', filePath);
+      if (fs.existsSync(full)) fs.unlinkSync(full);
+    } catch (err) { console.error('Local delete error:', err.message); }
   }
 }
 
@@ -457,39 +485,21 @@ app.get('/api/debug', (req, res) => {
 // Test Cloudinary connectivity (open endpoint — for debugging only)
 app.get('/api/test-cloudinary', async (req, res) => {
   if (!USE_CLOUDINARY) {
-    return res.json({ ok: false, reason: 'Cloudinary not configured (CLOUDINARY_URL not set)' });
+    return res.json({ ok: false, reason: 'Cloudinary not configured' });
   }
-
-  const cfg = cloudinary.config();
-  const configInfo = { cloud_name: cfg.cloud_name, api_key_set: !!cfg.api_key, api_secret_set: !!cfg.api_secret };
+  const { cloudName, apiKey, apiSecret } = getCloudinaryCreds();
+  const configInfo = { cloud_name: cloudName, api_key_set: !!apiKey, api_secret_set: !!apiSecret };
 
   try {
-    const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==';
-
-    const uploadPromise = new Promise((resolve, reject) => {
-      cloudinary.uploader.upload(
-        tinyPng,
-        { folder: 'ruz-interiors-test', resource_type: 'image', public_id: 'connection-test', timeout: 7000 },
-        (err, r) => { if (err) reject(err); else resolve(r); }
-      );
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Cloudinary request timed out after 7s')), 7000)
-    );
-
-    const result = await Promise.race([uploadPromise, timeoutPromise]);
-    res.json({ ok: true, url: result.secure_url, config: configInfo });
+    // Upload a tiny 1×1 white PNG using fetch-based upload
+    const tinyPngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const url = await cloudinaryUpload(tinyPngBuffer, 'image/png');
+    res.json({ ok: true, url, config: configInfo });
   } catch (err) {
-    res.status(500).json({
-      ok: false,
-      config: configInfo,
-      error: err.message || String(err),
-      http_code: err.http_code,
-      full: (() => { try { return JSON.parse(JSON.stringify(err)); } catch(_) { return String(err); } })()
-    });
+    res.status(500).json({ ok: false, config: configInfo, error: err.message || String(err) });
   }
 });
+
 
 
 
